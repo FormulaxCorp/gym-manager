@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gym Manager">
+  <title>Gym Member Manager</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/app.css?v=1">
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <!-- LOGIN / REGISTER -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <img src="icons/icon-192.png" alt="" width="56" height="56">
+      </div>
+      <h1>Gym Member Manager</h1>
+      <p class="auth-sub">Kelola member, paket & cashflow gym-mu</p>
+
+      <div class="auth-tabs">
+        <button id="tabLogin" class="auth-tab active">Masuk</button>
+        <button id="tabRegister" class="auth-tab">Daftar</button>
+      </div>
+
+      <div class="auth-form" id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+        <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+        <button id="loginBtn" class="auth-submit">Masuk</button>
+      </div>
+
+      <div class="auth-form hidden" id="registerForm">
+        <input type="email" id="regEmail" placeholder="Email" autocomplete="email">
+        <input type="password" id="regPassword" placeholder="Password (min. 6)" autocomplete="new-password">
+        <button id="registerBtn" class="auth-submit">Daftar</button>
+      </div>
+
+      <p class="auth-msg" id="authMsg"></p>
+    </div>
+  </div>
+
+  <div id="app" class="app-container hidden">
+    <!-- TOP NAV -->
+    <header class="top-nav">
+      <img src="icons/icon-192.png" class="nav-logo" width="26" height="26" alt="">
+      <span class="nav-title">Gym Manager</span>
+      <div class="nav-actions">
+        <button id="refreshBtn" class="icon-btn" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+        <button id="logoutBtn" class="icon-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </header>
+
+    <main class="main-content" id="mainContent">
+      <!-- DASHBOARD -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-header">
+          <h2>Dashboard</h2>
+          <p class="page-sub">Ringkasan member &amp; cashflow</p>
+        </div>
+        <div class="stat-grid" id="dashStats"></div>
+        <div class="section-card">
+          <div class="section-title"><i class="fas fa-bell" style="color:#ff7a1a"></i> Segera Kadaluarsa (&le;7 hari)</div>
+          <div id="dashExpiring" class="list-mini"></div>
+        </div>
+        <div class="section-card">
+          <div class="section-title"><i class="fas fa-ghost" style="color:#8ab4f8"></i> Member Ghost (tak check-in 30 hari)</div>
+          <div id="dashGhost" class="list-mini"></div>
+        </div>
+        <div class="section-card">
+          <div class="section-title"><i class="fas fa-wallet" style="color:#4caf50"></i> Cashflow Bulan Ini</div>
+          <div class="cashflow-now" id="dashRevenue"></div>
+        </div>
+      </section>
+
+      <!-- MEMBER -->
+      <section class="page" id="page-member">
+        <div class="page-header">
+          <h2>Member</h2>
+          <p class="page-sub">Daftar &amp; status keanggotaan</p>
+        </div>
+        <div class="filter-bar">
+          <input type="text" id="memberSearch" placeholder="Cari nama / no WA...">
+          <select id="memberFilter"><option value="">Semua</option><option value="active">Aktif</option><option value="expiring">Segera Kadaluarsa</option><option value="expired">Kadaluarsa</option><option value="freeze">Freeze</option></select>
+        </div>
+        <div id="memberList" class="list"></div>
+        <button class="fab" id="addMemberBtn" title="Tambah Member"><i class="fas fa-plus"></i></button>
+      </section>
+
+      <!-- PAKET -->
+      <section class="page" id="page-paket">
+        <div class="page-header">
+          <h2>Paket</h2>
+          <p class="page-sub">Langganan &amp; harga</p>
+        </div>
+        <div id="paketList" class="list"></div>
+        <button class="fab" id="addPaketBtn" title="Tambah Paket"><i class="fas fa-plus"></i></button>
+      </section>
+
+      <!-- PEMBAYARAN -->
+      <section class="page" id="page-pembayaran">
+        <div class="page-header">
+          <h2>Pembayaran</h2>
+          <p class="page-sub">Cashflow, DP &amp; cicilan</p>
+        </div>
+        <div class="section-card">
+          <div class="section-title">Total Bulan Ini</div>
+          <div class="cashflow-now" id="payTotalMonth"></div>
+        </div>
+        <div id="paymentList" class="list"></div>
+        <button class="fab" id="addPaymentBtn" title="Catat Pembayaran"><i class="fas fa-plus"></i></button>
+      </section>
+
+      <!-- CHECK-IN -->
+      <section class="page" id="page-checkin">
+        <div class="page-header">
+          <h2>Check-in</h2>
+          <p class="page-sub">Absensi &amp; deteksi ghost</p>
+        </div>
+        <div class="section-card">
+          <div class="section-title">Check-in Member</div>
+          <input type="text" id="checkinSearch" placeholder="Ketik nama member...">
+          <div id="checkinResults" class="list-mini"></div>
+        </div>
+        <div class="section-card">
+          <div class="section-title">Riwayat Check-in Hari Ini</div>
+          <div id="checkinToday" class="list-mini"></div>
+        </div>
+      </section>
+
+      <!-- LAPORAN -->
+      <section class="page" id="page-laporan">
+        <div class="page-header">
+          <h2>Laporan</h2>
+          <p class="page-sub">Rekap bulanan</p>
+        </div>
+        <div class="filter-bar">
+          <select id="reportMonth"></select>
+        </div>
+        <div class="stat-grid" id="reportStats"></div>
+        <div class="section-card">
+          <div class="section-title">Pembayaran Bulan Ini</div>
+          <div id="reportPayments" class="list-mini"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav" id="bottomNav">
+      <a href="#" class="active" data-page="dashboard"><i class="fas fa-th-large"></i><span>Home</span></a>
+      <a href="#" data-page="member"><i class="fas fa-users"></i><span>Member</span></a>
+      <a href="#" data-page="pembayaran"><i class="fas fa-money-bill-wave"></i><span>Bayar</span></a>
+      <a href="#" data-page="checkin"><i class="fas fa-qrcode"></i><span>Check-in</span></a>
+      <a href="#" data-page="laporan"><i class="fas fa-chart-line"></i><span>Laporan</span></a>
+    </nav>
+  </div>
+
+  <!-- MODAL: MEMBER -->
+  <div class="modal hidden" id="memberModal">
+    <div class="modal-content">
+      <div class="modal-header"><h3 id="memberModalTitle">Tambah Member</h3><button class="modal-close" data-close="memberModal"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="mId">
+        <div class="form-group"><label>Nama Lengkap</label><input type="text" id="mNama"></div>
+        <div class="form-group"><label>No. WhatsApp</label><input type="tel" id="mWa" placeholder="08xxxxxxxxxx"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Paket</label><select id="mPaket"></select></div>
+          <div class="form-group"><label>Mulai</label><input type="date" id="mMulai"></div>
+        </div>
+        <div class="form-group"><label>Berakhir (otomatis)</label><input type="text" id="mBerakhir" readonly></div>
+        <div class="form-group"><label>Catatan</label><input type="text" id="mNotes"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="memberModal">Batal</button>
+        <button class="btn btn-danger" id="mDelete" style="display:none"><i class="fas fa-trash"></i></button>
+        <button class="btn btn-primary" id="mSave"><i class="fas fa-check"></i> Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PAKET -->
+  <div class="modal hidden" id="paketModal">
+    <div class="modal-content">
+      <div class="modal-header"><h3 id="paketModalTitle">Tambah Paket</h3><button class="modal-close" data-close="paketModal"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="pId">
+        <div class="form-group"><label>Nama Paket</label><input type="text" id="pNama"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Durasi (bulan)</label><input type="number" id="pDurasi" min="1"></div>
+          <div class="form-group"><label>Harga (Rp)</label><input type="number" id="pHarga" min="0"></div>
+        </div>
+        <div class="form-group"><label>Catatan</label><input type="text" id="pNote"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="paketModal">Batal</button>
+        <button class="btn btn-danger" id="pDelete" style="display:none"><i class="fas fa-trash"></i></button>
+        <button class="btn btn-primary" id="pSave"><i class="fas fa-check"></i> Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PEMBAYARAN -->
+  <div class="modal hidden" id="paymentModal">
+    <div class="modal-content">
+      <div class="modal-header"><h3>Catat Pembayaran</h3><button class="modal-close" data-close="paymentModal"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Member</label><select id="payMember"></select></div>
+        <div class="form-row">
+          <div class="form-group"><label>Tanggal</label><input type="date" id="payTanggal"></div>
+          <div class="form-group"><label>Nominal (Rp)</label><input type="number" id="payNominal" min="0"></div>
+        </div>
+        <div class="form-group"><label>Metode</label>
+          <select id="payMetode"><option>Tunai</option><option>QRIS</option><option>Transfer</option><option>Bon/Kredit</option></select>
+        </div>
+        <div class="form-group"><label>Keterangan</label><input type="text" id="payKet" placeholder="cth: DP, cicilan, perpanjangan"></div>
+        <label class="pay-opt"><input type="checkbox" id="payExtend" checked> Otomatis perpanjang keanggotaan sesuai paket</label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="paymentModal">Batal</button>
+        <button class="btn btn-primary" id="paySave"><i class="fas fa-check"></i> Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/supabase-init.js?v=1"></script>
+  <script src="js/gym-data.js?v=1"></script>
+  <script src="js/app.js?v=1"></script>
+</body>
+</html>
