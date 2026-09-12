@@ -158,7 +158,7 @@
     document.querySelectorAll('#memberList .list-card').forEach(card => {
       const id = card.dataset.mid;
       card.querySelector('.act-edit').onclick = () => openMemberModal(id);
-      card.querySelector('.act-extend').onclick = () => doExtend(id);
+      if (card.querySelector('.act-extend')) card.querySelector('.act-extend').onclick = () => doExtend(id);
       card.querySelector('.act-freeze').onclick = async () => { await GymData.toggleFreeze(id); renderAll(); };
       card.querySelector('.lc-wa')?.addEventListener('click', e => {
         e.stopPropagation();
@@ -195,7 +195,7 @@
   }
 
   $('addMemberBtn').onclick = () => openMemberModal();
-  $('memberSave').onclick = async () => {
+  $('mSave').onclick = async () => {
     const nama = $('mNama').value.trim();
     if (!nama) { alert('Nama wajib diisi'); return; }
     const id = $('mId').value;
