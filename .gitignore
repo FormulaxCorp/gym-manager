@@ -1,3 +1,9 @@
 node_modules/
 .DS_Store
 *.log
+
+# test scaffolding (local regression, ga ship ke GitHub Pages)
+test-*.html
+test-*.js
+test-*.py
+node_modules/
