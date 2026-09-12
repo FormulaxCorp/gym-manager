@@ -7,42 +7,96 @@
   const $ = (id) => document.getElementById(id);
   let currentFilter = '';
 
+  // ---------- TOAST (pengganti alert) ----------
+  function toast(msg, type) {
+    type = type || 'success';
+    const icons = { success: 'fa-check', error: 'fa-exclamation', info: 'fa-info-circle' };
+    const box = $('toast');
+    const el = document.createElement('div');
+    el.className = 'toast-item toast-' + type;
+    el.innerHTML = `<span class="toast-ic"><i class="fas ${icons[type] || icons.info}"></i></span><span class="toast-text">${esc(msg)}</span>`;
+    box.appendChild(el);
+    setTimeout(() => {
+      el.classList.add('leaving');
+      setTimeout(() => el.remove(), 260);
+    }, 2400);
+  }
+
+  // ---------- CONFIRM (pengganti confirm) ----------
+  function confirmBox(opts) {
+    opts = opts || {};
+    return new Promise(resolve => {
+      const modal = $('confirmModal');
+      $('confirmTitle').textContent = opts.title || 'Konfirmasi';
+      $('confirmBody').textContent = opts.body || '';
+      $('confirmIc').innerHTML = `<i class="fas ${opts.icon || 'fa-exclamation-triangle'}"></i>`;
+      $('confirmOk').textContent = opts.okText || 'Ya';
+      $('confirmCancel').textContent = opts.cancelText || 'Batal';
+      modal.classList.remove('hidden');
+      requestAnimationFrame(() => modal.classList.add('showing'));
+      const done = v => {
+        modal.classList.remove('showing');
+        setTimeout(() => modal.classList.add('hidden'), 220);
+        $('confirmOk').onclick = null; $('confirmCancel').onclick = null;
+        modal.onclick = null;
+        resolve(v);
+      };
+      $('confirmOk').onclick = () => done(true);
+      $('confirmCancel').onclick = () => done(false);
+      modal.onclick = e => { if (e.target === modal) done(false); };
+    });
+  }
+
   // ---------- AUTH ----------
   function setupAuth() {
     const authScreen = $('auth-screen');
     const tabLogin = $('tabLogin'), tabRegister = $('tabRegister');
+    const card = document.querySelector('.auth-card');
 
+    function setAuthMsg(text, type) {
+      const m = $('authMsg');
+      m.textContent = text;
+      m.className = 'auth-msg' + (type ? ' ' + type : '');
+    }
+    function shake() {
+      card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+    }
     function showForm(which) {
       $('loginForm').classList.toggle('hidden', which !== 'login');
       $('registerForm').classList.toggle('hidden', which !== 'register');
       tabLogin.classList.toggle('active', which === 'login');
       tabRegister.classList.toggle('active', which === 'register');
-      $('authMsg').textContent = '';
+      setAuthMsg('');
     }
     tabLogin.onclick = () => showForm('login');
     tabRegister.onclick = () => showForm('register');
 
+    function btnBusy(btn, busy, label) {
+      if (busy) { btn.disabled = true; btn.dataset.label = label; btn.innerHTML = '<span class="spinner"></span><span>Memproses...</span>'; }
+      else { btn.disabled = false; btn.textContent = label; }
+    }
+
     async function doLogin() {
       const email = $('loginEmail').value.trim();
       const password = $('loginPassword').value;
-      if (!email || !password) { $('authMsg').textContent = 'Email & password wajib diisi'; return; }
-      $('loginBtn').disabled = true; $('loginBtn').textContent = '...';
+      if (!email || !password) { setAuthMsg('Email & password wajib diisi', 'error'); shake(); return; }
+      btnBusy($('loginBtn'), true, 'Masuk');
       const r = await Auth.login(email, password);
-      $('loginBtn').disabled = false; $('loginBtn').textContent = 'Masuk';
+      btnBusy($('loginBtn'), false, 'Masuk');
       if (r.success) { authScreen.classList.add('hidden'); $('app').classList.remove('hidden'); await boot(); }
-      else $('authMsg').textContent = r.message;
+      else { setAuthMsg(r.message, 'error'); shake(); }
     }
     async function doRegister() {
       const email = $('regEmail').value.trim();
       const password = $('regPassword').value;
-      if (!email || password.length < 6) { $('authMsg').textContent = 'Email valid & password min. 6 karakter'; return; }
-      $('registerBtn').disabled = true; $('registerBtn').textContent = '...';
+      if (!email || password.length < 6) { setAuthMsg('Email valid & password min. 6 karakter', 'error'); shake(); return; }
+      btnBusy($('registerBtn'), true, 'Daftar');
       const r = await Auth.register(email, password);
-      $('registerBtn').disabled = false; $('registerBtn').textContent = 'Daftar';
+      btnBusy($('registerBtn'), false, 'Daftar');
       if (r.success) {
-        if (r.needsConfirm) { $('authMsg').textContent = 'Cek email untuk konfirmasi, lalu masuk lagi.'; }
-        else { authScreen.classList.add('hidden'); $('app').classList.remove('hidden'); await boot(); }
-      } else $('authMsg').textContent = r.message;
+        if (r.needsConfirm) { setAuthMsg('Cek email untuk konfirmasi, lalu masuk lagi.', 'warn'); toast('Akun dibuat. Cek email untuk konfirmasi.', 'info'); }
+        else { toast('Selamat datang!', 'success'); authScreen.classList.add('hidden'); $('app').classList.remove('hidden'); await boot(); }
+      } else { setAuthMsg(r.message, 'error'); shake(); }
     }
 
     $('loginBtn').onclick = doLogin;
@@ -53,6 +107,7 @@
       await Auth.logout();
       $('app').classList.add('hidden');
       authScreen.classList.remove('hidden');
+      toast('Keluar akun.', 'info');
     };
 
     Auth.init().then(user => {
@@ -77,6 +132,10 @@
     fillPaymentMemberSelect();
   }
 
+  // ---------- MODAL SHOW/HIDE (smooth) ----------
+  function showModal(id) { const m = $(id); m.classList.remove('hidden'); requestAnimationFrame(() => m.classList.add('showing')); }
+  function hideModal(id) { const m = $(id); m.classList.remove('showing'); setTimeout(() => m.classList.add('hidden'), 220); }
+
   // ---------- NAV ----------
   function setupNav() {
     document.querySelectorAll('[data-page]').forEach(el => {
@@ -87,16 +146,17 @@
         $('page-' + page).classList.add('active');
         document.querySelectorAll('[data-page]').forEach(n => n.classList.remove('active'));
         document.querySelectorAll(`[data-page="${page}"]`).forEach(n => n.classList.add('active'));
+        $('mainContent').scrollTop = 0;
       });
     });
     // modals close
     document.querySelectorAll('[data-close]').forEach(b => {
-      b.addEventListener('click', () => $(b.dataset.close).classList.add('hidden'));
+      b.addEventListener('click', () => hideModal(b.dataset.close));
     });
     document.querySelectorAll('.modal').forEach(m => {
-      m.addEventListener('click', e => { if (e.target === m) m.classList.add('hidden'); });
+      m.addEventListener('click', e => { if (e.target === m) hideModal(m.id); });
     });
-    $('refreshBtn').onclick = async () => { $('refreshBtn').firstElementChild.classList.add('fa-spin'); await boot(); $('refreshBtn').firstElementChild.classList.remove('fa-spin'); };
+    $('refreshBtn').onclick = async () => { const i = $('refreshBtn').firstElementChild; i.classList.add('fa-spin'); await boot(); i.classList.remove('fa-spin'); toast('Data diperbarui.', 'success'); };
   }
 
   // ---------- DASHBOARD ----------
@@ -179,7 +239,7 @@
     $('mNotes').value = m?.notes || '';
     $('mDelete').style.display = m ? '' : 'none';
     updateBerakhir();
-    $('memberModal').classList.remove('hidden');
+    showModal('memberModal');
   }
   function fillMemberPaketSelect(sel) {
     $('mPaket').innerHTML = GymData.getPackages().map(p =>
@@ -197,7 +257,7 @@
   $('addMemberBtn').onclick = () => openMemberModal();
   $('mSave').onclick = async () => {
     const nama = $('mNama').value.trim();
-    if (!nama) { alert('Nama wajib diisi'); return; }
+    if (!nama) { toast('Nama wajib diisi', 'error'); $('mNama').focus(); return; }
     const id = $('mId').value;
     const payload = { nama, noWa: $('mWa').value.trim(), notes: $('mNotes').value.trim() };
     let ok;
@@ -209,13 +269,13 @@
       payload.freeze = false;
       ok = await GymData.addMember(payload);
     }
-    if (ok) { $('memberModal').classList.add('hidden'); renderAll(); }
+    if (ok) { hideModal('memberModal'); renderAll(); toast(id ? 'Member diperbarui' : 'Member ditambahkan', 'success'); }
   };
   $('mDelete').onclick = async () => {
-    if (!confirm('Hapus member ini beserta seluruh riwayatnya?')) return;
+    if (!(await confirmBox({ title: 'Hapus member?', body: 'Seluruh riwayat check-in & pembayaran member ini ikut terhapus. Tindakan tidak bisa dibatalkan.', okText: 'Hapus', icon: 'fa-trash' }))) return;
     const id = $('mId').value;
     await GymData.deleteMember(id);
-    $('memberModal').classList.add('hidden'); renderAll();
+    hideModal('memberModal'); renderAll(); toast('Member dihapus', 'info');
   };
 
   async function doExtend(id) {
@@ -223,8 +283,8 @@
     const pkg = GymData.getPackage(m.paket);
     const base = (GymData.memberStatus(m)==='active'||GymData.memberStatus(m)==='expiring') ? m.berakhir : GymData.today();
     const newEnd = GymData.addMonths(base, pkg?.durasiBulan || 1);
-    if (!confirm(`Perpanjang ${m.nama}?\n${pkg?pkg.nama:'paket'} +${pkg?.durasiBulan||1} bln → s.d. ${GymData.formatDate(newEnd)}`)) return;
-    await GymData.extendMember(id, m.paket); renderAll();
+    if (!(await confirmBox({ title: 'Perpanjang member?', body: `${m.nama} • ${pkg?pkg.nama:'paket'} +${pkg?.durasiBulan||1} bln\nS.d. ${GymData.formatDate(newEnd)}`, okText: 'Perpanjang', icon: 'fa-plus-circle' }))) return;
+    await GymData.extendMember(id, m.paket); renderAll(); toast('Keanggotaan diperpanjang', 'success');
   }
   $('memberSearch').oninput = renderMembers;
   $('memberFilter').onchange = e => { currentFilter = e.target.value; renderMembers(); };
@@ -250,21 +310,21 @@
     $('pHarga').value = p?.harga || '';
     $('pNote').value = p?.note || '';
     $('pDelete').style.display = p ? '' : 'none';
-    $('paketModal').classList.remove('hidden');
+    showModal('paketModal');
   }
   $('addPaketBtn').onclick = () => openPaketModal();
   $('pSave').onclick = async () => {
     const nama = $('pNama').value.trim();
-    if (!nama) { alert('Nama paket wajib diisi'); return; }
+    if (!nama) { toast('Nama paket wajib diisi', 'error'); $('pNama').focus(); return; }
     const payload = { nama, durasiBulan: parseInt($('pDurasi').value)||1, harga: parseFloat($('pHarga').value)||0, note: $('pNote').value.trim() };
     const id = $('pId').value;
     const ok = id ? await GymData.updatePackage(id, payload) : await GymData.addPackage(payload);
-    if (ok) { $('paketModal').classList.add('hidden'); renderAll(); }
+    if (ok) { hideModal('paketModal'); renderAll(); toast(id ? 'Paket diperbarui' : 'Paket ditambahkan', 'success'); }
   };
   $('pDelete').onclick = async () => {
-    if (!confirm('Hapus paket ini?')) return;
+    if (!(await confirmBox({ title: 'Hapus paket?', body: 'Paket ini akan dihapus. Member yang sudah terdaftar tidak terpengaruh.', okText: 'Hapus', icon: 'fa-trash' }))) return;
     await GymData.deletePackage($('pId').value);
-    $('paketModal').classList.add('hidden'); renderAll();
+    hideModal('paketModal'); renderAll(); toast('Paket dihapus', 'info');
   };
 
   // ---------- PEMBAYARAN ----------
@@ -281,30 +341,30 @@
         <button class="mini-btn act-pdel" title="Hapus"><i class="fas fa-trash"></i></button>
       </div>`;
     }).join('') : `<div class="list-empty"><i class="fas fa-money-bill"></i><p>Belum ada pembayaran</p></div>`;
-    document.querySelectorAll('#paymentList .act-pdel').forEach((b,i) => b.onclick = async () => { if(confirm('Hapus?')){ await GymData.deletePayment(list[i].id); renderAll(); } });
+    document.querySelectorAll('#paymentList .act-pdel').forEach((b,i) => b.onclick = async () => { if(await confirmBox({ title:'Hapus pembayaran?', body:'Transaksi ini akan dihapus dari laporan.', okText:'Hapus', icon:'fa-trash' })) { await GymData.deletePayment(list[i].id); renderAll(); toast('Pembayaran dihapus','info'); } });
   }
   function fillPaymentMemberSelect(sel) {
     $('payMember').innerHTML = GymData.getMembers().map(m => `<option value="${m.id}" ${m.id===sel?'selected':''}>${esc(m.nama)}</option>`).join('') || '<option value="">— tidak ada member —</option>';
     if (sel) $('payMember').value = sel;
   }
   $('addPaymentBtn').onclick = () => {
-    if (!GymData.getMembers().length) { alert('Tambah member dulu'); return; }
+    if (!GymData.getMembers().length) { toast('Tambah member dulu', 'error'); return; }
     fillPaymentMemberSelect();
     $('payTanggal').value = GymData.today();
     $('payNominal').value = '';
     $('payKet').value = '';
     $('payExtend').checked = true;
-    $('paymentModal').classList.remove('hidden');
+    showModal('paymentModal');
   };
   $('paySave').onclick = async () => {
     const memberId = $('payMember').value;
     const nominal = parseFloat($('payNominal').value) || 0;
-    if (!memberId) { alert('Pilih member'); return; }
-    if (nominal <= 0) { alert('Nominal harus > 0'); return; }
+    if (!memberId) { toast('Pilih member', 'error'); return; }
+    if (nominal <= 0) { toast('Nominal harus lebih dari 0', 'error'); $('payNominal').focus(); return; }
     const m = GymData.getMember(memberId);
     await GymData.addPayment({ member_id: memberId, tanggal: $('payTanggal').value, nominal, metode: $('payMetode').value, keterangan: $('payKet').value.trim() });
     if ($('payExtend').checked && m && m.paket) await GymData.extendMember(memberId, m.paket);
-    $('paymentModal').classList.add('hidden'); renderAll();
+    hideModal('paymentModal'); renderAll(); toast('Pembayaran tercatat' + ($('payExtend').checked && m && m.paket ? ' • keanggotaan diperpanjang' : ''), 'success');
   };
 
   // ---------- CHECK-IN ----------
@@ -318,7 +378,7 @@
       return `<div class="mini-row"><span>${esc(m.nama)} ${cnt>0?`<span class="tag tag-ok">✓${cnt}</span>`:''}</span>
       <button class="mini-btn cin-btn" data-cid="${m.id}" ${st==='expired'?'disabled title="Kadaluarsa"':''}><i class="fas fa-check"></i></button></div>`;
     }).join('') : emptyMini('Ketik nama member');
-    document.querySelectorAll('#checkinResults .cin-btn').forEach(b => b.onclick = async () => { await GymData.addCheckin(b.dataset.cid); renderCheckin(); });
+    document.querySelectorAll('#checkinResults .cin-btn').forEach(b => b.onclick = async () => { await GymData.addCheckin(b.dataset.cid); renderCheckin(); toast('Check-in tercatat', 'success'); });
 
     const todayList = GymData.getCheckins().filter(c => c.tanggal === today);
     $('checkinToday').innerHTML = todayList.length ? todayList.map(c => {

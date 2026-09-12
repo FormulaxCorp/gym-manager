@@ -231,8 +231,24 @@
     </div>
   </div>
 
-  <script src="js/supabase-init.js?v=1"></script>
-  <script src="js/gym-data.js?v=1"></script>
-  <script src="js/app.js?v=1"></script>
+  <!-- CONFIRM MODAL (pengganti confirm() native) -->
+  <div class="modal hidden" id="confirmModal">
+    <div class="modal-content" style="text-align:center">
+      <div class="confirm-ic" id="confirmIc"><i class="fas fa-exclamation-triangle"></i></div>
+      <h3 id="confirmTitle" style="margin:14px 0 6px;font-size:18px;font-weight:800"></h3>
+      <p id="confirmBody" class="confirm-body"></p>
+      <div class="modal-footer" style="margin-top:22px">
+        <button class="btn btn-ghost" id="confirmCancel">Batal</button>
+        <button class="btn btn-danger" id="confirmOk">Ya</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST (pengganti alert()) -->
+  <div id="toast"></div>
+
+  <script src="js/supabase-init.js?v=2"></script>
+  <script src="js/gym-data.js?v=2"></script>
+  <script src="js/app.js?v=2"></script>
 </body>
 </html>

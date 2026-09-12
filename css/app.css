@@ -72,8 +72,8 @@ input[readonly] { opacity: .7; }
 
 .main-content { flex: 1; overflow-y: auto; padding: 16px 16px 90px; -webkit-overflow-scrolling: touch; }
 .page { display: none; }
-.page.active { display: block; animation: fade .18s ease; }
-@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.page.active { display: block; animation: pageIn .28s cubic-bezier(.22,.61,.36,1); }
+@keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 .page-header { margin-bottom: 16px; }
 .page-header h2 { font-size: 22px; font-weight: 800; }
@@ -176,15 +176,16 @@ input[readonly] { opacity: .7; }
 .modal {
   position: fixed; inset: 0; z-index: 50; background: #000a;
   display: flex; align-items: flex-end; justify-content: center;
-  animation: fade .15s ease;
+  opacity: 0; transition: opacity .2s ease;
 }
+.modal.showing { opacity: 1; }
 .modal-content {
   background: var(--bg2); width: 100%; max-width: 520px;
   border-radius: 20px 20px 0 0; padding: 20px 20px calc(20px + var(--safe-b));
   max-height: 92vh; overflow-y: auto;
-  animation: slideup .22s ease;
+  transform: translateY(100%); transition: transform .26s cubic-bezier(.22,.61,.36,1);
 }
-@keyframes slideup { from { transform: translateY(30px); opacity: .5; } to { transform: none; opacity: 1; } }
+.modal.showing .modal-content { transform: translateY(0); }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .modal-header h3 { font-size: 18px; font-weight: 800; }
 .modal-close { width: 34px; height: 34px; border-radius: 9px; background: var(--card); color: var(--muted); font-size: 15px; }
@@ -194,9 +195,44 @@ input[readonly] { opacity: .7; }
 .form-row { display: flex; gap: 12px; }
 .form-row .form-group { flex: 1; }
 .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
-.btn { flex: 1; padding: 14px; border-radius: 12px; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.btn { flex: 1; padding: 14px; border-radius: 12px; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: transform .08s ease, opacity .15s ease; }
+.btn:active { transform: scale(.97); }
 .btn-primary { background: var(--accent); color: #111; }
 .btn-ghost { background: var(--card); color: var(--muted); flex: 0 0 auto; padding: 14px 20px; }
 .btn-danger { background: var(--red); color: #fff; flex: 0 0 auto; padding: 14px 18px; }
 .pay-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .pay-opt input { width: auto; }
+
+/* ===== CONFIRM MODAL ===== */
+.confirm-ic { width: 56px; height: 56px; border-radius: 50%; margin: 8px auto 0; display: flex; align-items: center; justify-content: center; font-size: 24px; background: #f4433622; color: #ff7043; }
+.confirm-body { color: var(--muted); font-size: 14px; line-height: 1.5; white-space: pre-line; }
+
+/* ===== TOAST (pengganti alert) ===== */
+#toast { position: fixed; left: 0; right: 0; bottom: calc(84px + var(--safe-b)); z-index: 100; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 16px; }
+.toast-item {
+  pointer-events: auto; max-width: 380px; width: 100%;
+  background: var(--card2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 8px 30px #000a; font-size: 14px; font-weight: 600;
+  transform: translateY(20px) scale(.96); opacity: 0;
+  animation: toastIn .28s cubic-bezier(.22,.61,.36,1) forwards;
+}
+.toast-item.leaving { animation: toastOut .25s ease forwards; }
+@keyframes toastIn { to { transform: none; opacity: 1; } }
+@keyframes toastOut { to { transform: translateY(20px) scale(.96); opacity: 0; } }
+.toast-ic { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex: 0 0 auto; }
+.toast-success { border-color: #4caf5055; }
+.toast-success .toast-ic { background: #4caf5022; color: var(--green); }
+.toast-error { border-color: #f4433655; }
+.toast-error .toast-ic { background: #f4433622; color: #ff7043; }
+.toast-info { border-color: #29b6f655; }
+.toast-info .toast-ic { background: #29b6f622; color: var(--blue); }
+
+/* ===== AUTH: loading + error ===== */
+.spinner { width: 18px; height: 18px; border: 2.5px solid #0003; border-top-color: #111; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.auth-msg { margin-top: 14px; font-size: 13px; color: var(--red); min-height: 16px; transition: color .2s ease; }
+.auth-msg.ok { color: var(--green); }
+.auth-msg.warn { color: #ff9800; }
+.auth-card.shake { animation: shake .4s ease; }
+@keyframes shake { 10%,90% { transform: translateX(-2px);} 20%,80% { transform: translateX(4px);} 30%,50%,70% { transform: translateX(-8px);} 40%,60% { transform: translateX(8px);} }
